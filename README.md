@@ -6,6 +6,19 @@ This suite continuously ingests public n8n templates and documentation, vectoriz
 
 ---
 
+## 🎯 Overview & Key Capabilities
+
+Standard cloud LLMs frequently hallucinate n8n node schemas, expression syntax, and API parameters. Additionally, passing internal enterprise workflow logic or credential structures to public SaaS models introduces compliance and security risks.
+
+This suite provides an end-to-end, locally hosted intelligence pipeline designed to generate, debug, and automate n8n workflows with zero external API dependencies.
+
+* **100% Privacy & Air-Gapped Security**: All ingestion, vectorization, and model inference execute locally on host hardware. No workflow data or prompt context leaves your environment.
+* **Schema-Accurate RAG Retrieval**: Ingests and vectorizes public templates (~240k vector points) to eliminate node configuration hallucinations and provide real-world workflow patterns.
+* **Zero Operational API Cost**: Powered by local Ollama acceleration (`nomic-embed-text` for 768-dim embeddings and `qwen2.5:7b-instruct` for orchestration/generation).
+* **Automated Data Hygiene**: Built-in regex filters strip sensitive API keys/secrets prior to vector storage, and workflow logs are automatically pruned.
+
+---
+
 ## 🏗 System Architecture
 
 ```text
@@ -28,13 +41,12 @@ This suite continuously ingests public n8n templates and documentation, vectoriz
 n8n-rag-suite/
 ├── docker-compose.yml
 ├── .env.example
+├── .gitignore
 ├── README.md
 ├── workflows/
-│   ├── 01-sync-n8n-templates-to-qdrant.json
-│   ├── 02-sync-n8n-docs-to-qdrant.json
-│   └── 03-local-rag-chat-assistant.json
+│   └── n8n-template-catalog-vector-sync.json
 └── scripts/
-    └── export-qdrant-snapshot.sh
+    └── .gitkeep
 ```
 
 ---
@@ -84,26 +96,25 @@ docker compose up -d
 
 Instead of performing the multi-hour initial catalog embedding sweep, you can seed your Qdrant database instantly using a pre-indexed vector snapshot (~240k points):
 
-1. **Download Snapshot**:
-   Download the latest `.snapshot` file from the [Releases page](../../releases).
-
-2. **Restore to Local Qdrant**:
+1. **Restore to Local Qdrant**:
    ```bash
    curl -X POST http://localhost:6333/collections/n8n_templates/snapshots/upload \
      -H 'Content-Type: multipart/form-data' \
      -F 'snapshot=@n8n_templates-latest.snapshot'
    ```
 
-3. **Verify Seed**:
+2. **Verify Seed**:
    ```bash
    curl -s http://localhost:6333/collections/n8n_templates | jq '.result.points_count'
    ```
 
 ---
 
-## 🔄 Workflow 01: Daily Incremental Template Sync
+## 🔄 Workflows
 
-* **File**: `workflows/01-sync-n8n-templates-to-qdrant.json`
+### n8n Template Catalog Vector Sync
+
+* **File**: `workflows/n8n-template-catalog-vector-sync.json`
 * **Schedule**: Daily at 02:00 AM local time
 * **Function**: Fetches Pages 1–2 of the n8n template API, cleans invalid unicode/hex control sequences, conducts automated secret detection audits, and upserts updated vectors to Qdrant.
 
