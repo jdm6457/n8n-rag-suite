@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🛠️ 01 - n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
+        "content": "## 🛠️ n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
         "height": 268,
         "width": 1516,
         "color": 6
@@ -129,7 +129,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1344,
+        1312,
         48
       ],
       "id": "dcfbbe9d-ec03-48b0-9276-c8e63e70d1a2",
@@ -138,12 +138,12 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\n\n// Helper function to clean text & fix hex/unicode parser errors\nfunction sanitizeText(str) {\n  if (typeof str !== 'string') return str;\n  return str\n    // Remove null bytes and non-printable control characters\n    .replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '')\n    // Replace problematic \\x hex sequences with standard text equivalents\n    .replace(/\\\\x([0-9a-fA-F]{2})/g, '0x$1')\n    .replace(/\\\\x/g, 'x')\n    // Fix broken \\u unicode sequences\n    .replace(/\\\\u(?![0-9a-fA-F]{4})/g, 'u');\n}\n\nfor (const item of$input.all()) {\n  const fullData = item.json;\n\n  // Skip missing or 404 workflow templates\n  if (fullData.error || !fullData.workflow) {\n    continue;\n  }\n\n  const meta = fullData.workflow || {};\n  const nodes = meta.nodes || [];\n\n  let stickyNotes = [];\n  let systemPrompts = [];\n  let nodeTypes = new Set();\n  let hardcodedSecretsFound = false;\n\n  for (const node of nodes) {\n    if (node.type) nodeTypes.add(node.type);\n    if (node.type === 'n8n-nodes-base.stickyNote' && node.parameters?.content) {\n      stickyNotes.push(sanitizeText(node.parameters.content));\n    }\n    if (node.parameters?.options?.systemMessage) {\n      systemPrompts.push(sanitizeText(node.parameters.options.systemMessage));\n    }\n    const paramString = JSON.stringify(node.parameters || {});\n    if (/(sk-[a-zA-Z0-9]{20,}|bearer\\s+[a-zA-Z0-9\\-\\._~Method\\+\\/]+=*)/i.test(paramString)) {\n      hardcodedSecretsFound = true;\n    }\n  }\n\n  const rawContent = `\nTitle: ${fullData.name || 'Untitled Workflow'}\nDescription: ${fullData.description || 'No description provided.'}\nCategories: ${(fullData.categories || []).join(', ')}\nNodes Used: ${Array.from(nodeTypes).join(', ')}\n\n--- Sticky Note Guides ---\n${stickyNotes.join('\\n\\n')}\n\n--- AI System Prompts ---\n${systemPrompts.join('\\n\\n')}\n`.trim();\n\n  const documentContent = sanitizeText(rawContent);\n\n  results.push({\n    json: {\n      pageContent: documentContent,\n      metadata: {\n        template_id: fullData.id,\n        name: sanitizeText(fullData.name || ''),\n        categories: (fullData.categories || []).map(c => sanitizeText(c)),\n        nodes: Array.from(nodeTypes).map(n => sanitizeText(n)),\n        has_security_warning: hardcodedSecretsFound\n      }\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "const results = [];\n\n// Helper function to clean text & fix hex/unicode parser errors\nfunction sanitizeText(str) {\n  if (typeof str !== 'string') return str;\n  return str\n    // Remove null bytes and non-printable control characters\n    .replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '')\n    // Replace problematic \\x hex sequences with standard text equivalents\n    .replace(/\\\\x([0-9a-fA-F]{2})/g, '0x$1')\n    .replace(/\\\\x/g, 'x')\n    // Fix broken \\u unicode sequences\n    .replace(/\\\\u(?![0-9a-fA-F]{4})/g, 'u');\n}\n\nfor (const item of $input.all()) {\n  const fullData = item.json;\n\n  // Skip missing or 404 workflow templates\n  if (fullData.error || !fullData.workflow) {\n    continue;\n  }\n\n  const meta = fullData.workflow || {};\n  const nodes = meta.nodes || [];\n\n  let stickyNotes = [];\n  let systemPrompts = [];\n  let nodeTypes = new Set();\n  let hardcodedSecretsFound = false;\n\n  for (const node of nodes) {\n    if (node.type) nodeTypes.add(node.type);\n    if (node.type === 'n8n-nodes-base.stickyNote' && node.parameters?.content) {\n      stickyNotes.push(sanitizeText(node.parameters.content));\n    }\n    if (node.parameters?.options?.systemMessage) {\n      systemPrompts.push(sanitizeText(node.parameters.options.systemMessage));\n    }\n    const paramString = JSON.stringify(node.parameters || {});\n    if (/(sk-[a-zA-Z0-9]{20,}|bearer\\s+[a-zA-Z0-9\\-\\._~Method\\+\\/]+=*)/i.test(paramString)) {\n      hardcodedSecretsFound = true;\n    }\n  }\n\n  const rawContent = `\nTitle: ${fullData.name || 'Untitled Workflow'}\nDescription: ${fullData.description || 'No description provided.'}\nCategories: ${(fullData.categories || []).join(', ')}\nNodes Used: ${Array.from(nodeTypes).join(', ')}\n\n--- Sticky Note Guides ---\n${stickyNotes.join('\\n\\n')}\n\n--- AI System Prompts ---\n${systemPrompts.join('\\n\\n')}\n`.trim();\n\n  const documentContent = sanitizeText(rawContent);\n\n  results.push({\n    json: {\n      pageContent: documentContent,\n      metadata: {\n        template_id: fullData.id,\n        name: sanitizeText(fullData.name || ''),\n        categories: (fullData.categories || []).map(c => sanitizeText(c)),\n        nodes: Array.from(nodeTypes).map(n => sanitizeText(n)),\n        has_security_warning: hardcodedSecretsFound\n      }\n    }\n  });\n}\n\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1552,
+        1520,
         48
       ],
       "id": "1ea84e9b-bfb8-433d-a161-21f2666ee6db",
@@ -340,7 +340,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "8a96e782-c355-4905-9520-7a4a1b4c9752",
+  "versionId": "0e0c2c25-3a0a-47ab-9bdf-105d64e6f9a7",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"
