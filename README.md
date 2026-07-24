@@ -98,7 +98,7 @@ Instead of performing the multi-hour initial catalog embedding sweep, you can se
 
 1. **Download Snapshot from Release v1.0.0** (`-L` ensures `curl` follows the GitHub S3 redirect):
    ```bash
-   curl -L -O [https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates-5566120412088090-2026-07-24-01-41-17.snapshot](https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates-5566120412088090-2026-07-24-01-41-17.snapshot)
+   curl -L -O https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates-5566120412088090-2026-07-24-01-41-17.snapshot
    ```
 
 2. **Restore to Local Qdrant**:
