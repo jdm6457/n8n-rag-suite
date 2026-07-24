@@ -1,0 +1,12 @@
+# Environment & Secrets
+.env
+
+# Persistent Database Volumes & Snapshots
+data/
+qdrant_data/
+n8n_data/
+*.snapshot
+
+# OS & Logs
+.DS_Store
+*.log

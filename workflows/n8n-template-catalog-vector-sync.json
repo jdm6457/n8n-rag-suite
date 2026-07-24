@@ -1,0 +1,351 @@
+{
+  "name": "n8n Template Catalog Vector Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🛠️ 01 - n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
+        "height": 268,
+        "width": 1516,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -416
+      ],
+      "id": "5f257bcf-9b8f-4db5-b48c-62693eec4816",
+      "name": "Sticky Note - Intro"
+    },
+    {
+      "parameters": {
+        "content": "### 1. Ingestion & Incremental Fetch\nFetches top community templates from n8n public catalog API.\n* Pages 1–2 only (~200 items) for daily updates.\n* Splits collection array into individual workflow items.",
+        "height": 332,
+        "width": 592,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -128
+      ],
+      "id": "0ca81787-4803-4681-b6a7-78b113b05f84",
+      "name": "Sticky Note - Ingestion"
+    },
+    {
+      "parameters": {
+        "content": "### 2. Full Extraction & Security Audit\n* Pulls full workflow metadata, sticky note text, and system prompts.\n* Strips non-printable ASCII/hex control characters.\n* Scans node configuration strings for exposed API keys.",
+        "height": 332,
+        "width": 440,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        -128
+      ],
+      "id": "e14e532d-0818-46a1-81b2-5c2027ffc832",
+      "name": "Sticky Note - Audit"
+    },
+    {
+      "parameters": {
+        "content": "### 3. Embed & Vector Indexing\n* Embeds text content via Ollama (`nomic-embed-text`).\n* Upserts vectors and metadata into Qdrant `n8n_templates` collection.",
+        "height": 508,
+        "width": 468,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        -128
+      ],
+      "id": "f6472ac9-ff1f-45dd-863f-c326c5669809",
+      "name": "Sticky Note - Qdrant"
+    },
+    {
+      "parameters": {
+        "url": "https://api.n8n.io/templates/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "rows",
+              "value": "100"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $pageCount >= 2 }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        48
+      ],
+      "id": "975cef7c-a4e9-4adc-b968-6e75881007cd",
+      "name": "Fetch Template Catalog"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "workflows",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        1088,
+        48
+      ],
+      "id": "4393a7b2-38d5-4f32-9eb4-09123a78f88d",
+      "name": "Split Templates"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.n8n.io/workflows/templates/{{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        48
+      ],
+      "id": "dcfbbe9d-ec03-48b0-9276-c8e63e70d1a2",
+      "name": "Fetch Full Workflow JSON",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\n// Helper function to clean text & fix hex/unicode parser errors\nfunction sanitizeText(str) {\n  if (typeof str !== 'string') return str;\n  return str\n    // Remove null bytes and non-printable control characters\n    .replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '')\n    // Replace problematic \\x hex sequences with standard text equivalents\n    .replace(/\\\\x([0-9a-fA-F]{2})/g, '0x$1')\n    .replace(/\\\\x/g, 'x')\n    // Fix broken \\u unicode sequences\n    .replace(/\\\\u(?![0-9a-fA-F]{4})/g, 'u');\n}\n\nfor (const item of$input.all()) {\n  const fullData = item.json;\n\n  // Skip missing or 404 workflow templates\n  if (fullData.error || !fullData.workflow) {\n    continue;\n  }\n\n  const meta = fullData.workflow || {};\n  const nodes = meta.nodes || [];\n\n  let stickyNotes = [];\n  let systemPrompts = [];\n  let nodeTypes = new Set();\n  let hardcodedSecretsFound = false;\n\n  for (const node of nodes) {\n    if (node.type) nodeTypes.add(node.type);\n    if (node.type === 'n8n-nodes-base.stickyNote' && node.parameters?.content) {\n      stickyNotes.push(sanitizeText(node.parameters.content));\n    }\n    if (node.parameters?.options?.systemMessage) {\n      systemPrompts.push(sanitizeText(node.parameters.options.systemMessage));\n    }\n    const paramString = JSON.stringify(node.parameters || {});\n    if (/(sk-[a-zA-Z0-9]{20,}|bearer\\s+[a-zA-Z0-9\\-\\._~Method\\+\\/]+=*)/i.test(paramString)) {\n      hardcodedSecretsFound = true;\n    }\n  }\n\n  const rawContent = `\nTitle: ${fullData.name || 'Untitled Workflow'}\nDescription: ${fullData.description || 'No description provided.'}\nCategories: ${(fullData.categories || []).join(', ')}\nNodes Used: ${Array.from(nodeTypes).join(', ')}\n\n--- Sticky Note Guides ---\n${stickyNotes.join('\\n\\n')}\n\n--- AI System Prompts ---\n${systemPrompts.join('\\n\\n')}\n`.trim();\n\n  const documentContent = sanitizeText(rawContent);\n\n  results.push({\n    json: {\n      pageContent: documentContent,\n      metadata: {\n        template_id: fullData.id,\n        name: sanitizeText(fullData.name || ''),\n        categories: (fullData.categories || []).map(c => sanitizeText(c)),\n        nodes: Array.from(nodeTypes).map(n => sanitizeText(n)),\n        has_security_warning: hardcodedSecretsFound\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        48
+      ],
+      "id": "1ea84e9b-bfb8-433d-a161-21f2666ee6db",
+      "name": "Security Audit & Text Sanitizer"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "n8n_templates",
+          "mode": "list",
+          "cachedResultName": "n8n_templates"
+        },
+        "embeddingBatchSize": 10,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1824,
+        48
+      ],
+      "id": "7693242a-01d7-4329-9f5b-613d2f62e39e",
+      "name": "Qdrant Vector Store",
+      "credentials": {
+        "qdrantApi": {
+          "id": "4rFynKVIaOXnNAZn",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        240
+      ],
+      "id": "d430b5e7-ee65-4f19-99d0-f210369d8a07",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "m6dJhwYRVek1q7oJ",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "template_id",
+                "value": "={{ $json.metadata.template_id }}"
+              },
+              {
+                "name": "name",
+                "value": "={{ $json.metadata.name }}"
+              },
+              {
+                "name": "has_security_warning",
+                "value": "={{ $json.metadata.has_security_warning }}"
+              },
+              {
+                "name": "categories",
+                "value": "={{ $json.metadata.categories }}"
+              },
+              {
+                "name": "nodes",
+                "value": "={{ $json.metadata.nodes }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1936,
+        240
+      ],
+      "id": "6f096173-040a-4255-81cc-6414e1571a58",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2,
+              "triggerAtMinute": null
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        48
+      ],
+      "id": "220a28b0-e73e-4543-b19a-f80c2122c522",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch Template Catalog": {
+      "main": [
+        [
+          {
+            "node": "Split Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Templates": {
+      "main": [
+        [
+          {
+            "node": "Fetch Full Workflow JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Full Workflow JSON": {
+      "main": [
+        [
+          {
+            "node": "Security Audit & Text Sanitizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Audit & Text Sanitizer": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Template Catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8a96e782-c355-4905-9520-7a4a1b4c9752",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"
+  },
+  "nodeGroups": [],
+  "id": "0rv9SHoVxoahDbcv",
+  "tags": []
+}

@@ -1,0 +1,57 @@
+networks:
+  n8n-rag-network:
+    driver: bridge
+
+volumes:
+  n8n_storage:
+  qdrant_storage:
+
+services:
+  # --------------------------------------------------
+  # 1. Qdrant Vector Database
+  # --------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: n8n_qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT}:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - n8n-rag-network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1s bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------
+  # 2. n8n Automation Engine
+  # --------------------------------------------------
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n_app
+    env_file:
+      - .env
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT}:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:${N8N_PORT}/
+      - GENERIC_TIMEZONE=${TIMEZONE}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS}
+    volumes:
+      - n8n_storage:/home/node/.n8n
+    networks:
+      - n8n-rag-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      qdrant:
+        condition: service_healthy
