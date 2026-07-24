@@ -46,7 +46,7 @@ n8n-rag-suite/
 ├── workflows/
 │   └── n8n-template-catalog-vector-sync.json
 └── scripts/
-    └── .gitkeep
+    └── export-qdrant-snapshot.sh
 ```
 
 ---
@@ -94,16 +94,21 @@ docker compose up -d
 
 ## 📦 Instant Vector Seed (Skip Full Ingestion Sweep)
 
-Instead of performing the multi-hour initial catalog embedding sweep, you can seed your Qdrant database instantly using a pre-indexed vector snapshot (~240k points):
+Instead of performing the multi-hour initial catalog embedding sweep, you can seed your local Qdrant database instantly using the official pre-indexed vector snapshot (~242k points):
 
-1. **Restore to Local Qdrant**:
+1. **Download Snapshot from Release v1.0.0** (`-L` ensures `curl` follows the GitHub S3 redirect):
+   ```bash
+   curl -L -O [https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates-5566120412088090-2026-07-24-01-41-17.snapshot](https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates-5566120412088090-2026-07-24-01-41-17.snapshot)
+   ```
+
+2. **Restore to Local Qdrant**:
    ```bash
    curl -X POST http://localhost:6333/collections/n8n_templates/snapshots/upload \
      -H 'Content-Type: multipart/form-data' \
-     -F 'snapshot=@n8n_templates-latest.snapshot'
+     -F 'snapshot=@n8n_templates-5566120412088090-2026-07-24-01-41-17.snapshot'
    ```
 
-2. **Verify Seed**:
+3. **Verify Seed**:
    ```bash
    curl -s http://localhost:6333/collections/n8n_templates | jq '.result.points_count'
    ```
@@ -112,13 +117,24 @@ Instead of performing the multi-hour initial catalog embedding sweep, you can se
 
 ## 🔄 Workflows
 
-> ℹ️ **Current Status**: Workflow #1 (*Template Catalog Sync*) is fully production-ready and active. Node documentation sync and chat assistant workflows are currently under active development.
+> ℹ️ **Current Status**: Workflow #1 (*Template Catalog Sync*) is live and production-ready. Node documentation sync and chat assistant workflows are currently under active development.
 
 ### n8n Template Catalog Vector Sync
 
 * **File**: `workflows/n8n-template-catalog-vector-sync.json`
 * **Schedule**: Daily at 02:00 AM local time
 * **Function**: Fetches Pages 1–2 of the n8n template API, cleans invalid unicode/hex control sequences, conducts automated secret detection audits, and upserts updated vectors to Qdrant.
+
+---
+
+## 🛠 Maintenance Scripts
+
+### Export Qdrant Vector Snapshot
+To create and download a fresh baseline `.snapshot` file of the `n8n_templates` collection locally:
+
+```bash
+./scripts/export-qdrant-snapshot.sh
+```
 
 ---
 
