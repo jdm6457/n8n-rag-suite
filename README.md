@@ -112,6 +112,8 @@ Instead of performing the multi-hour initial catalog embedding sweep, you can se
 
 ## 🔄 Workflows
 
+> ℹ️ **Current Status**: Workflow #1 (*Template Catalog Sync*) is fully production-ready and active. Node documentation sync and chat assistant workflows are currently under active development.
+
 ### n8n Template Catalog Vector Sync
 
 * **File**: `workflows/n8n-template-catalog-vector-sync.json`
