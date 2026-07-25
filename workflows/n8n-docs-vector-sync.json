@@ -1,0 +1,410 @@
+{
+  "name": "n8n Doc Vector Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "n8n_docs",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "ce5d9861-ca67-43dc-ad28-3f81906e1abb",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        224
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "4rFynKVIaOXnNAZn",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text"
+      },
+      "id": "cbe8e37c-5850-4771-a1da-62d523a8454e",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        416
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "m6dJhwYRVek1q7oJ",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        416
+      ],
+      "id": "ffa139ad-d934-45e1-8dd8-e8619a52d7c5",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/n8n-io/n8n-docs/git/trees/main?recursive=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-rag-suite"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5f23127d-ed4a-4271-8ae7-b097aab7b7c0",
+      "name": "Fetch n8n Docs Tree",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst tree = items[0]?.json?.tree || [];\nconst processed = [];\n\n// Filter for official markdown files in docs/ folder\nconst docFiles = tree.filter(file => \n  file.path && \n  file.path.startsWith('docs/') && \n  file.path.endsWith('.md') && \n  !file.path.includes('.github')\n);\n\nfor (const file of docFiles) {\n  const pathParts = file.path.split('/');\n  const category = pathParts.length > 2 ? pathParts[1] : 'general';\n  const fileName = pathParts[pathParts.length - 1].replace('.md', '');\n  const title = fileName.replace(/-/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());\n  const rawUrl = `https://raw.githubusercontent.com/n8n-io/n8n-docs/main/${file.path}`;\n\n  processed.push({\n    json: {\n      metadata: {\n        doc_type: 'official_doc',\n        category: category,\n        file_path: file.path,\n        title: title,\n        raw_url: rawUrl\n      }\n    }\n  });\n}\n\nreturn processed;"
+      },
+      "id": "a42ea3a3-fd4b-4b64-882e-d19aeb6917a3",
+      "name": "Parse Doc File List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.metadata.raw_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-rag-suite"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        848,
+        224
+      ],
+      "id": "b91f1196-558e-45aa-8cff-cd23b423f3e0",
+      "name": "Fetch Raw Markdown",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst processed = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  \n  // Explicitly reference Node #3 metadata by exact name\n  const metadata = $('Parse Doc File List').all()[i]?.json?.metadata || {};\n  \n  // Extract text response\n  const fileContent = typeof item.json.data === 'string' ? item.json.data : (typeof item.json === 'string' ? item.json : '');\n\n  if (!fileContent || fileContent.trim().length === 0) continue;\n\n  const cleanContent = fileContent.trim();\n  const sections = cleanContent.split(/(?=\\n#{1,3}\\s)/g);\n\n  let chunkIndex = 1;\n  for (const section of sections) {\n    const trimmed = section.trim();\n    if (trimmed.length < 50) continue;\n\n    const headingMatch = trimmed.match(/^#{1,3}\\s+(.+)$/m);\n    const sectionHeading = headingMatch ? headingMatch[1].replace(/[*_~`]/g, '') : 'General Overview';\n\n    const maxChunkLen = 1500;\n\n    if (trimmed.length > maxChunkLen) {\n      const paragraphs = trimmed.split(/\\n\\n+/);\n      let currentChunk = '';\n\n      for (const para of paragraphs) {\n        if ((currentChunk + '\\n\\n' + para).length > maxChunkLen && currentChunk.length > 0) {\n          processed.push({\n            json: {\n              pageContent: `### ${metadata.title || 'Doc'} > ${sectionHeading} (Part ${chunkIndex})\\n**Category:** ${metadata.category || 'general'}\\n**Source:** ${metadata.file_path || ''}\\n\\n${currentChunk}`,\n              metadata: {\n                ...metadata,\n                section_heading: sectionHeading,\n                chunk_index: chunkIndex\n              }\n            }\n          });\n          chunkIndex++;\n          currentChunk = para;\n        } else {\n          currentChunk = currentChunk ? `${currentChunk}\\n\\n${para}` : para;\n        }\n      }\n\n      if (currentChunk.trim().length > 30) {\n        processed.push({\n          json: {\n            pageContent: `### ${metadata.title || 'Doc'} > ${sectionHeading} (Part ${chunkIndex})\\n**Category:** ${metadata.category || 'general'}\\n**Source:** ${metadata.file_path || ''}\\n\\n${currentChunk}`,\n            metadata: {\n              ...metadata,\n              section_heading: sectionHeading,\n              chunk_index: chunkIndex\n            }\n          }\n        });\n        chunkIndex++;\n      }\n    } else {\n      processed.push({\n        json: {\n          pageContent: `### ${metadata.title || 'Doc'} > ${sectionHeading}\\n**Category:** ${metadata.category || 'general'}\\n**Source:** ${metadata.file_path || ''}\\n\\n${trimmed}`,\n          metadata: {\n            ...metadata,\n            section_heading: sectionHeading,\n            chunk_index: chunkIndex\n          }\n        }\n      });\n      chunkIndex++;\n    }\n  }\n}\n\nreturn processed;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        224
+      ],
+      "id": "5cd9cbf7-963e-4414-a063-0463955f8b04",
+      "name": "Markdown Section Chunker"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/n8n_docs/points/delete",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"filter\": {}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        224
+      ],
+      "id": "45a6c2df-c250-4979-9435-5f150db462d6",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "content": "## 🛠️ n8n Documentation Vector Sync\n\nPurpose: On-demand ingestion of the complete official n8n documentation repository (docs.n8n.io) into Qdrant for local RAG retrieval.\n\nPrerequisites:\n• Host Ollama running `nomic-embed-text`\n• Local Qdrant instance listening on port 6333 (`n8n_docs` collection)\n• Automated daily schedule (3 AM check with smart GitHub SHA change-detection)",
+        "height": 268,
+        "width": 1916,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -304
+      ],
+      "id": "63fe009b-30cc-44e3-bef7-cb5ce8869035",
+      "name": "Sticky Note - Intro"
+    },
+    {
+      "parameters": {
+        "content": "### 1. Check for Changes, Collection Wipe & Tree Fetch\n\n• Check SHA of n8n docs repo and continue only if it has changed\n• Wipes existing vectors in `n8n_docs` via Qdrant REST API to prevent point duplication.\n• Queries GitHub API for the recursive file tree of the official `n8n-io/n8n-docs` repository.",
+        "height": 444,
+        "width": 896,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -16
+      ],
+      "id": "cb68a9dc-6fcc-433b-a26e-f4e38655254e",
+      "name": "Sticky Note - Ingestion"
+    },
+    {
+      "parameters": {
+        "content": "### 2. File Isolation & Raw Fetch\n\n• Filters repository file tree to isolate official Markdown (`.md`) documentation pages.\n• Fetches raw Markdown content from GitHub raw endpoints using 10-item batching and retry options to prevent rate limits.",
+        "height": 444,
+        "width": 440,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        576,
+        -16
+      ],
+      "id": "7341e418-e26a-4413-bb5f-1581b693d6fb",
+      "name": "Sticky Note - Audit"
+    },
+    {
+      "parameters": {
+        "content": "### 3. Markdown Chunking & Qdrant Ingestion\n\n• Splits raw Markdown pages into logical sections by headings (`#`, `##`, `###`).\n• Generates text embeddings via Ollama (`nomic-embed-text`).\n• Upserts document chunks and rich metadata directly into Qdrant `n8n_docs` collection.",
+        "height": 572,
+        "width": 532,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -16
+      ],
+      "id": "947bfe2d-1b85-40b0-a6a5-43a481c82ee9",
+      "name": "Sticky Note - Qdrant"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        224
+      ],
+      "id": "4be85970-f686-439b-ba98-00b50c8327f7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/n8n-io/n8n-docs/commits/main",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-rag-suite"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -128,
+        224
+      ],
+      "id": "4d375ab8-3c0d-4b3f-aada-c16afbb2a80d",
+      "name": "Fetch Latest Commit SHA"
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst currentSha = $input.all()[0]?.json?.sha;\n\nif (!currentSha) {\n  throw new Error(\"Could not retrieve commit SHA from GitHub API.\");\n}\n\n// 1. INITIAL SEEDING: If no SHA is saved yet, save today's SHA and STOP!\nif (!staticData.lastDocCommitSha) {\n  staticData.lastDocCommitSha = currentSha;\n  console.log(`Seeded workflow memory with today's commit SHA (${currentSha}). Skipping ingestion until next change.`);\n  return []; // Stops workflow execution right here\n}\n\n// 2. CHECK FOR CHANGES: Compare current SHA with stored SHA\nif (currentSha === staticData.lastDocCommitSha) {\n  console.log(`No documentation updates detected. Current SHA (${currentSha}) matches stored SHA.`);\n  return []; // Stops workflow execution right here\n}\n\n// 3. UPDATES FOUND: Update stored SHA and pass execution forward\nconsole.log(`New documentation commit detected! Updating SHA to ${currentSha}`);\nstaticData.lastDocCommitSha = currentSha;\n\nreturn [{\n  json: {\n    status: 'UPDATES_FOUND',\n    currentSha: currentSha\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        224
+      ],
+      "id": "d17405e1-1150-4b8c-a396-02af02bce5af",
+      "name": "Check Commit SHA Change"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch n8n Docs Tree": {
+      "main": [
+        [
+          {
+            "node": "Parse Doc File List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Doc File List": {
+      "main": [
+        [
+          {
+            "node": "Fetch Raw Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Raw Markdown": {
+      "main": [
+        [
+          {
+            "node": "Markdown Section Chunker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown Section Chunker": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Fetch n8n Docs Tree",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Commit SHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Commit SHA": {
+      "main": [
+        [
+          {
+            "node": "Check Commit SHA Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Commit SHA Change": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a19ad7d9-47df-4ef3-b7ec-23bf9d5d9dd4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"
+  },
+  "nodeGroups": [],
+  "id": "DxbAqoYYv9MF9Vci",
+  "tags": []
+}
