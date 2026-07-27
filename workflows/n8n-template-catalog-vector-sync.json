@@ -3,16 +3,16 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🛠️ n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
-        "height": 268,
-        "width": 1516,
+        "content": "## 🛠️ n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**🔗 Quick Links & Seed Database:**\n* **GitHub Repository**: [jdm6457/n8n-rag-suite](https://github.com/jdm6457/n8n-rag-suite)\n* **Instant Seed Download**: [n8n_templates_clean_227k.snapshot](https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates_clean_227k.snapshot) (~227k points)\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
+        "height": 364,
+        "width": 1804,
         "color": 6
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         640,
-        -416
+        -512
       ],
       "id": "5f257bcf-9b8f-4db5-b48c-62693eec4816",
       "name": "Sticky Note - Intro"
@@ -20,7 +20,7 @@
     {
       "parameters": {
         "content": "### 1. Ingestion & Incremental Fetch\nFetches top community templates from n8n public catalog API.\n* Pages 1–2 only (~200 items) for daily updates.\n* Splits collection array into individual workflow items.",
-        "height": 332,
+        "height": 348,
         "width": 592,
         "color": 4
       },
@@ -36,7 +36,7 @@
     {
       "parameters": {
         "content": "### 2. Full Extraction & Security Audit\n* Pulls full workflow metadata, sticky note text, and system prompts.\n* Strips non-printable ASCII/hex control characters.\n* Scans node configuration strings for exposed API keys.",
-        "height": 332,
+        "height": 348,
         "width": 440,
         "color": 3
       },
@@ -51,9 +51,9 @@
     },
     {
       "parameters": {
-        "content": "### 3. Embed & Vector Indexing\n* Embeds text content via Ollama (`nomic-embed-text`).\n* Upserts vectors and metadata into Qdrant `n8n_templates` collection.",
+        "content": "### 3. Purge Dupes, Embed & Vector Indexing\n* Check for duplicate templates and delete them\n* Embeds text content via Ollama (`nomic-embed-text`).\n* Upserts vectors and metadata into Qdrant `n8n_templates` collection.",
         "height": 508,
-        "width": 468,
+        "width": 756,
         "color": 5
       },
       "type": "n8n-nodes-base.stickyNote",
@@ -101,8 +101,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        896,
-        48
+        912,
+        64
       ],
       "id": "975cef7c-a4e9-4adc-b968-6e75881007cd",
       "name": "Fetch Template Catalog"
@@ -115,8 +115,8 @@
       "type": "n8n-nodes-base.itemLists",
       "typeVersion": 3,
       "position": [
-        1088,
-        48
+        1104,
+        64
       ],
       "id": "4393a7b2-38d5-4f32-9eb4-09123a78f88d",
       "name": "Split Templates"
@@ -129,8 +129,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1312,
-        48
+        1328,
+        64
       ],
       "id": "dcfbbe9d-ec03-48b0-9276-c8e63e70d1a2",
       "name": "Fetch Full Workflow JSON",
@@ -143,8 +143,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1520,
-        48
+        1536,
+        64
       ],
       "id": "1ea84e9b-bfb8-433d-a161-21f2666ee6db",
       "name": "Security Audit & Text Sanitizer"
@@ -164,8 +164,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
       "typeVersion": 1.3,
       "position": [
-        1824,
-        48
+        2144,
+        64
       ],
       "id": "7693242a-01d7-4329-9f5b-613d2f62e39e",
       "name": "Qdrant Vector Store",
@@ -183,8 +183,8 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
       "typeVersion": 1,
       "position": [
-        1744,
-        240
+        2144,
+        256
       ],
       "id": "d430b5e7-ee65-4f19-99d0-f210369d8a07",
       "name": "Embeddings Ollama",
@@ -227,8 +227,8 @@
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "typeVersion": 1.1,
       "position": [
-        1936,
-        240
+        2304,
+        256
       ],
       "id": "6f096173-040a-4255-81cc-6414e1571a58",
       "name": "Default Data Loader"
@@ -239,7 +239,7 @@
           "interval": [
             {
               "triggerAtHour": 2,
-              "triggerAtMinute": null
+              "triggerAtMinute": {}
             }
           ]
         }
@@ -247,11 +247,43 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        688,
-        48
+        704,
+        64
       ],
       "id": "220a28b0-e73e-4543-b19a-f80c2122c522",
       "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $(\"Security Audit & Text Sanitizer\").all();;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        64
+      ],
+      "id": "7d826dc4-d0ef-4919-9c97-e6136a2bedf6",
+      "name": "Pass-Through Workflow Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/n8n_templates/points/delete",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"filter\": {\n      \"must\": [\n        {\n          \"key\": \"metadata.template_id\",\n          \"match\": {\n            \"any\": $(\"Security Audit & Text Sanitizer\").all().map(item => item.json.metadata?.template_id || item.json.template_id)\n          }\n        }\n      ]\n    }\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        64
+      ],
+      "id": "3b1964bf-90b8-4233-b7c3-49915135206f",
+      "name": "Purge Existing Template Vectors",
+      "executeOnce": true
     }
   ],
   "pinData": {},
@@ -293,7 +325,7 @@
       "main": [
         [
           {
-            "node": "Qdrant Vector Store",
+            "node": "Purge Existing Template Vectors",
             "type": "main",
             "index": 0
           }
@@ -332,15 +364,37 @@
           }
         ]
       ]
+    },
+    "Pass-Through Workflow Items": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Purge Existing Template Vectors": {
+      "main": [
+        [
+          {
+            "node": "Pass-Through Workflow Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "0e0c2c25-3a0a-47ab-9bdf-105d64e6f9a7",
+  "versionId": "95d8b7a1-b4fb-4b8f-93ac-beaff3ef3bb8",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"
