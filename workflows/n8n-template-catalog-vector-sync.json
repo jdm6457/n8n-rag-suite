@@ -238,8 +238,7 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 2,
-              "triggerAtMinute": {}
+              "triggerAtHour": 2
             }
           ]
         }
@@ -388,13 +387,13 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "95d8b7a1-b4fb-4b8f-93ac-beaff3ef3bb8",
+  "versionId": "6dc3e7a1-f40c-42f8-a854-f951c2c06f93",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"
