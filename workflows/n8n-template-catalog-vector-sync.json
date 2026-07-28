@@ -3,18 +3,18 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🛠️ n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**🔗 Quick Links & Seed Database:**\n* **GitHub Repository**: [jdm6457/n8n-rag-suite](https://github.com/jdm6457/n8n-rag-suite)\n* **Instant Seed Download**: [n8n_templates_clean_227k.snapshot](https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates_clean_227k.snapshot) (~227k points)\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
+        "content": "## 🛠️ n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**🔗 Quick Links & Seed Database:**\n* **GitHub Repository**: [jdm6457/n8n-rag-suite](https://github.com/jdm6457/n8n-rag-suite)\n* **Instant Seed Download**: wget https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
         "height": 364,
-        "width": 1804,
+        "width": 1852,
         "color": 6
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        640,
-        -512
+        960,
+        -48
       ],
-      "id": "5f257bcf-9b8f-4db5-b48c-62693eec4816",
+      "id": "139cd54f-25c6-4a65-8ddb-894c68a95d91",
       "name": "Sticky Note - Intro"
     },
     {
@@ -27,10 +27,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        640,
-        -128
+        960,
+        336
       ],
-      "id": "0ca81787-4803-4681-b6a7-78b113b05f84",
+      "id": "bc89b7cb-3f19-4b86-881a-ca4b4b206a1f",
       "name": "Sticky Note - Ingestion"
     },
     {
@@ -43,26 +43,26 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1248,
-        -128
+        1568,
+        336
       ],
-      "id": "e14e532d-0818-46a1-81b2-5c2027ffc832",
+      "id": "44f285fd-0a2e-43c5-ac04-b1a29c5471b3",
       "name": "Sticky Note - Audit"
     },
     {
       "parameters": {
         "content": "### 3. Purge Dupes, Embed & Vector Indexing\n* Check for duplicate templates and delete them\n* Embeds text content via Ollama (`nomic-embed-text`).\n* Upserts vectors and metadata into Qdrant `n8n_templates` collection.",
-        "height": 508,
-        "width": 756,
+        "height": 524,
+        "width": 804,
         "color": 5
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1696,
-        -128
+        2016,
+        336
       ],
-      "id": "f6472ac9-ff1f-45dd-863f-c326c5669809",
+      "id": "9c46e271-f68f-4dc0-bac4-f219c5c71dea",
       "name": "Sticky Note - Qdrant"
     },
     {
@@ -101,10 +101,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        912,
-        64
+        1232,
+        528
       ],
-      "id": "975cef7c-a4e9-4adc-b968-6e75881007cd",
+      "id": "0c4dad43-ae9d-4324-830c-548e6c3c388a",
       "name": "Fetch Template Catalog"
     },
     {
@@ -115,10 +115,10 @@
       "type": "n8n-nodes-base.itemLists",
       "typeVersion": 3,
       "position": [
-        1104,
-        64
+        1424,
+        528
       ],
-      "id": "4393a7b2-38d5-4f32-9eb4-09123a78f88d",
+      "id": "620452a5-ba13-48ad-8680-2b872cf5315a",
       "name": "Split Templates"
     },
     {
@@ -129,24 +129,24 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1328,
-        64
+        1648,
+        528
       ],
-      "id": "dcfbbe9d-ec03-48b0-9276-c8e63e70d1a2",
+      "id": "e6ea8c75-8949-434b-a49b-f3d3d7588c2d",
       "name": "Fetch Full Workflow JSON",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\n\n// Helper function to clean text & fix hex/unicode parser errors\nfunction sanitizeText(str) {\n  if (typeof str !== 'string') return str;\n  return str\n    // Remove null bytes and non-printable control characters\n    .replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '')\n    // Replace problematic \\x hex sequences with standard text equivalents\n    .replace(/\\\\x([0-9a-fA-F]{2})/g, '0x$1')\n    .replace(/\\\\x/g, 'x')\n    // Fix broken \\u unicode sequences\n    .replace(/\\\\u(?![0-9a-fA-F]{4})/g, 'u');\n}\n\nfor (const item of $input.all()) {\n  const fullData = item.json;\n\n  // Skip missing or 404 workflow templates\n  if (fullData.error || !fullData.workflow) {\n    continue;\n  }\n\n  const meta = fullData.workflow || {};\n  const nodes = meta.nodes || [];\n\n  let stickyNotes = [];\n  let systemPrompts = [];\n  let nodeTypes = new Set();\n  let hardcodedSecretsFound = false;\n\n  for (const node of nodes) {\n    if (node.type) nodeTypes.add(node.type);\n    if (node.type === 'n8n-nodes-base.stickyNote' && node.parameters?.content) {\n      stickyNotes.push(sanitizeText(node.parameters.content));\n    }\n    if (node.parameters?.options?.systemMessage) {\n      systemPrompts.push(sanitizeText(node.parameters.options.systemMessage));\n    }\n    const paramString = JSON.stringify(node.parameters || {});\n    if (/(sk-[a-zA-Z0-9]{20,}|bearer\\s+[a-zA-Z0-9\\-\\._~Method\\+\\/]+=*)/i.test(paramString)) {\n      hardcodedSecretsFound = true;\n    }\n  }\n\n  const rawContent = `\nTitle: ${fullData.name || 'Untitled Workflow'}\nDescription: ${fullData.description || 'No description provided.'}\nCategories: ${(fullData.categories || []).join(', ')}\nNodes Used: ${Array.from(nodeTypes).join(', ')}\n\n--- Sticky Note Guides ---\n${stickyNotes.join('\\n\\n')}\n\n--- AI System Prompts ---\n${systemPrompts.join('\\n\\n')}\n`.trim();\n\n  const documentContent = sanitizeText(rawContent);\n\n  results.push({\n    json: {\n      pageContent: documentContent,\n      metadata: {\n        template_id: fullData.id,\n        name: sanitizeText(fullData.name || ''),\n        categories: (fullData.categories || []).map(c => sanitizeText(c)),\n        nodes: Array.from(nodeTypes).map(n => sanitizeText(n)),\n        has_security_warning: hardcodedSecretsFound\n      }\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "const splitItems = $('Split Templates').all();\n\nconst secretRegexes = [\n  /sk-[a-zA-Z0-9]{20,}/i,\n  /bearer\\s+[a-zA-Z0-9\\-\\._~\\+\\/]+=*/i,\n  /(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}/,\n  /ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}/,\n  /AIza[0-9A-Za-z-_]{35}/,\n  /xox[baprs]-[0-9a-zA-Z]{10,48}/,\n  /(postgres|mysql|mongodb|redis):\\/\\/[^:]+:[^@]+@/i\n];\n\n// Strips surrogate pairs (emojis), lone surrogates, null bytes, and control chars\nfunction sanitizeString(str) {\n  if (typeof str !== 'string') return str;\n\n  let s = str;\n\n  // 1. Remove 4-byte surrogate pairs (emojis, symbols) to prevent Text Splitter truncation errors\n  s = s.replace(/[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]/g, ' ');\n\n  // 2. Remove any remaining orphan surrogates\n  s = s.replace(/[\\uD800-\\uDFFF]/g, '');\n\n  // 3. Strip null bytes and non-printable control characters (preserving newlines/tabs)\n  s = s.replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/g, '');\n\n  return s;\n}\n\nfunction sanitize(val) {\n  if (typeof val === 'string') {\n    return sanitizeString(val);\n  }\n  if (Array.isArray(val)) {\n    return val.map(sanitize);\n  }\n  if (val && typeof val === 'object') {\n    const res = {};\n    for (const [k, v] of Object.entries(val)) {\n      res[k] = sanitize(v);\n    }\n    return res;\n  }\n  return val;\n}\n\nreturn $input.all().map((item, index) => {\n  const fullData = item.json || {};\n  const splitData = splitItems[index]?.json || {};\n  \n  const workflowObj = fullData.workflow || {};\n  const nodes = fullData.nodes || workflowObj.nodes || [];\n\n  const rawId = fullData.id ?? fullData.templateId ?? splitData.id;\n  const templateId = rawId ? Number(rawId) : null;\n\n  const name = fullData.name || splitData.name || 'Untitled';\n  const description = fullData.description || splitData.description || '';\n  \n  const rawCategories = fullData.categories || splitData.categories || [];\n  const categories = rawCategories.map(c => typeof c === 'object' ? (c.name || c.label || '') : c).filter(Boolean);\n\n  const nodeTypes = [...new Set(nodes.map(n => n.type))];\n  const nodeCount = nodes.length;\n\n  const triggerTypes = [...new Set(\n    nodes.filter(n => (n.type || '').toLowerCase().includes('trigger')).map(n => n.type)\n  )];\n\n  const hasAiNodes = nodes.some(n => \n    (n.type || '').includes('langchain') || \n    (n.type || '').includes('openai') || \n    (n.type || '').includes('anthropic') || \n    (n.type || '').includes('ollama') || \n    (n.type || '').includes('qdrant') ||\n    (n.type || '').includes('vectorStore')\n  );\n\n  const views = Number(fullData.views ?? splitData.views ?? fullData.totalViews ?? 0);\n  const createdAt = fullData.createdAt || splitData.createdAt || fullData.created_at || null;\n  const slug = fullData.slug || splitData.slug || '';\n  const templateUrl = slug ? `https://n8n.io/workflows/${slug}` : (templateId ? `https://n8n.io/workflows/${templateId}` : '');\n\n  const stickyNotes = nodes\n    .filter(n => n.type === 'n8n-nodes-base.stickyNote')\n    .map(n => n.parameters?.content || '');\n    \n  const systemPrompts = nodes\n    .filter(n => n.parameters?.options?.systemMessage || n.parameters?.systemMessage)\n    .map(n => n.parameters?.options?.systemMessage || n.parameters?.systemMessage || '');\n\n  const nodeDetails = nodes.map(n => {\n    return `Node: ${n.name} (${n.type})\\nConfig: ${JSON.stringify(n.parameters || {})}`;\n  }).join('\\n');\n\n  const pageContent = [\n    `Title: ${name}`,\n    `Description: ${description || 'No description provided'}`,\n    `Categories: ${categories.join(', ')}`,\n    `Node Types Used: ${nodeTypes.join(', ')}`,\n    stickyNotes.length > 0 ? `Sticky Notes:\\n${stickyNotes.join('\\n')}` : '',\n    systemPrompts.length > 0 ? `System Prompts:\\n${systemPrompts.join('\\n')}` : '',\n    nodeDetails ? `Workflow Configurations:\\n${nodeDetails}` : ''\n  ].filter(Boolean).join('\\n\\n');\n\n  const paramString = JSON.stringify(nodes.map(n => n.parameters || {}));\n  const combinedTextToScan = [\n    paramString,\n    stickyNotes.join(' '),\n    systemPrompts.join(' '),\n    description\n  ].join(' ');\n\n  const hasSecurityWarning = secretRegexes.some(regex => regex.test(combinedTextToScan));\n\n  const payload = {\n    metadata: {\n      template_id: templateId,\n      name: name,\n      description: description,\n      categories: categories,\n      nodeTypes: nodeTypes,\n      node_count: nodeCount,\n      trigger_types: triggerTypes,\n      has_ai_nodes: hasAiNodes,\n      has_security_warning: hasSecurityWarning,\n      views: views,\n      created_at: createdAt,\n      template_url: templateUrl\n    },\n    pageContent: pageContent\n  };\n\n  return {\n    json: sanitize(payload)\n  };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1536,
-        64
+        1856,
+        528
       ],
-      "id": "1ea84e9b-bfb8-433d-a161-21f2666ee6db",
+      "id": "2bc2cffd-76b1-4148-93dd-b8b4d6653a03",
       "name": "Security Audit & Text Sanitizer"
     },
     {
@@ -164,10 +164,10 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
       "typeVersion": 1.3,
       "position": [
-        2144,
-        64
+        2464,
+        528
       ],
-      "id": "7693242a-01d7-4329-9f5b-613d2f62e39e",
+      "id": "52de46c7-b2ba-4337-909b-c4ac9a0fc052",
       "name": "Qdrant Vector Store",
       "credentials": {
         "qdrantApi": {
@@ -183,10 +183,10 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
       "typeVersion": 1,
       "position": [
-        2144,
-        256
+        2464,
+        720
       ],
-      "id": "d430b5e7-ee65-4f19-99d0-f210369d8a07",
+      "id": "93d316fa-79ae-4809-bf28-5977fcbb00b5",
       "name": "Embeddings Ollama",
       "credentials": {
         "ollamaApi": {
@@ -217,8 +217,36 @@
                 "value": "={{ $json.metadata.categories }}"
               },
               {
-                "name": "nodes",
-                "value": "={{ $json.metadata.nodes }}"
+                "name": "nodeTypes",
+                "value": "={{ $json.metadata.nodeTypes }}"
+              },
+              {
+                "name": "description",
+                "value": "={{ $json.metadata.description }}"
+              },
+              {
+                "name": "node_count",
+                "value": "={{ $json.metadata.node_count }}"
+              },
+              {
+                "name": "trigger_types",
+                "value": "={{ $json.metadata.trigger_types }}"
+              },
+              {
+                "name": "has_ai_nodes",
+                "value": "={{ $json.metadata.has_ai_nodes }}"
+              },
+              {
+                "name": "views",
+                "value": "={{ $json.metadata.views }}"
+              },
+              {
+                "name": "created_at",
+                "value": "={{ $json.metadata.created_at }}"
+              },
+              {
+                "name": "template_url",
+                "value": "={{ $json.metadata.template_url }}"
               }
             ]
           }
@@ -227,10 +255,10 @@
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "typeVersion": 1.1,
       "position": [
-        2304,
-        256
+        2624,
+        720
       ],
-      "id": "6f096173-040a-4255-81cc-6414e1571a58",
+      "id": "118c5326-4d0d-448b-9c75-8199d84c1aa0",
       "name": "Default Data Loader"
     },
     {
@@ -246,10 +274,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        704,
-        64
+        1024,
+        528
       ],
-      "id": "220a28b0-e73e-4543-b19a-f80c2122c522",
+      "id": "5225300a-844b-47df-a711-f8139b9273e7",
       "name": "Schedule Trigger"
     },
     {
@@ -259,10 +287,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1968,
-        64
+        2288,
+        528
       ],
-      "id": "7d826dc4-d0ef-4919-9c97-e6136a2bedf6",
+      "id": "e0b2974b-f1d4-445f-8edd-e20fdf9d91d9",
       "name": "Pass-Through Workflow Items"
     },
     {
@@ -277,10 +305,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1760,
-        64
+        2080,
+        528
       ],
-      "id": "3b1964bf-90b8-4233-b7c3-49915135206f",
+      "id": "237009a5-4a5a-4dbc-91b2-c9dcf5301781",
       "name": "Purge Existing Template Vectors",
       "executeOnce": true
     }
@@ -393,7 +421,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "6dc3e7a1-f40c-42f8-a854-f951c2c06f93",
+  "versionId": "a6c48dff-36af-4e3a-a471-a6ca7077e9b9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"

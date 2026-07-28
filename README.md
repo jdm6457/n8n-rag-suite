@@ -13,7 +13,7 @@ Standard cloud LLMs frequently hallucinate n8n node schemas, expression syntax, 
 This suite provides an end-to-end, locally hosted intelligence pipeline designed to generate, debug, and automate n8n workflows with zero external API dependencies.
 
 * **100% Privacy & Air-Gapped Security**: All ingestion, vectorization, and model inference execute locally on host hardware. No workflow data or prompt context leaves your environment.
-* **Schema-Accurate Dual RAG Retrieval**: Ingests and vectorizes public templates (~227k vector points) and official n8n documentation (~148k vector points) to eliminate hallucinations and supply real-world workflow patterns.
+* **Schema-Accurate Dual RAG Retrieval**: Ingests and vectorizes public templates (~749k vector points) and official n8n documentation (~148k vector points) to eliminate hallucinations and supply real-world workflow patterns.
 * **Zero Operational API Cost**: Powered by local Ollama acceleration (`nomic-embed-text` for 768-dim embeddings and `qwen2.5:7b-instruct` for orchestration/generation).
 * **Automated Data Hygiene & Deduplication**: Built-in regex filters strip sensitive API keys/secrets prior to vector storage, an automated HTTP pre-sync purge keeps vector stores strictly deduplicated, workflow execution logs are automatically pruned, and daily GitHub SHA checks prevent redundant doc re-indexing.
 
@@ -23,7 +23,7 @@ This suite provides an end-to-end, locally hosted intelligence pipeline designed
 
 **Phases 1, 2, and 3 are 100% complete and operational!**
 
-* **Phase 1 (Template Catalog Sync)**: Ingested over 227,000+ deduplicated vector points from the n8n community workflow template catalog into Qdrant (`n8n_templates`). Includes automated idempotent pre-sync purges.
+* **Phase 1 (Template Catalog Sync)**: Ingested over 749,000+ deduplicated vector points from the n8n community workflow template catalog into Qdrant (`n8n_templates`). Includes automated idempotent pre-sync purges.
 * **Phase 2 (Doc Sync & Automated Maintenance)**: Ingested official n8n documentation (~148,000+ vectors) into Qdrant (`n8n_docs`) with an automated daily 3 AM schedule and smart GitHub Commit SHA change-detection.
 * **Phase 3 (On-Device RAG Assistant)**: Fully deployed local AI Agent with dynamic tool routing across both vector stores (`n8n_docs_retriever` & `n8n_templates_retriever`).
 
@@ -104,11 +104,39 @@ docker compose up -d
 
 ---
 
+## 📦 Database Seeding (Instant Vector Seed)
+
+To bypass running a multi-hour catalog embedding sweep, seed your local Qdrant database instantly using the official pre-indexed, deduplicated vector snapshot hosted on Hugging Face Datasets (~749k points):
+
+1. **Download Compressed Snapshot**:
+   ```bash
+   wget [https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz](https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz)
+   ```
+
+2. **Decompress Archive**:
+   ```bash
+   gunzip n8n_templates_749k.snapshot.gz
+   ```
+
+3. **Restore to Local Qdrant**:
+   ```bash
+   curl -X POST http://localhost:6333/collections/n8n_templates/snapshots/upload \
+     -H 'Content-Type: multipart/form-data' \
+     -F 'snapshot=@n8n_templates_749k.snapshot'
+   ```
+
+4. **Verify Seed**:
+   ```bash
+   curl -s http://localhost:6333/collections/n8n_templates | jq '{status: .result.status, points_count: .result.points_count}'
+   ```
+
+---
+
 ## 🧩 Suite Components & Workflows
 
 ### 📦 Phase 1: Community Template Catalog Vector Sync
 * **Workflow File**: `workflows/n8n-template-catalog-vector-sync.json`
-* **Target Collection**: `n8n_templates` (~227,000 vectors)
+* **Target Collection**: `n8n_templates` (~749,000 vectors)
 * **Description**: Parses, chunks, and embeds the n8n community workflow template repository. Conducts automated secret detection audits, cleans invalid unicode control sequences, executes an automated pre-sync purge (`Purge Existing Template Vectors` node) to overwrite old vector chunks by `template_id`, and upserts fresh dense embeddings.
 
 ### 📚 Phase 2: Official Documentation Vector Sync
@@ -124,38 +152,6 @@ docker compose up -d
   * **`n8n_docs_retriever`**: Directs environment setup, expression syntax, queue mode, and core architecture queries to official documentation.
   * **`n8n_templates_retriever`**: Directs requests for sample JSON structures, flow patterns, and real-world node configurations to template vectors.
   * **Hybrid Synthesis**: Seamlessly queries both vector stores sequentially for complex prompts requiring theory and implementation examples.
-
----
-
-## 📦 Database Seeding Options
-
-You can populate your local Qdrant vector database using either of the following two options:
-
-### Option A: Instant Vector Seed (Skip Ingestion Sweep)
-Instead of performing the multi-hour initial catalog embedding sweep, seed your local Qdrant database instantly using the official pre-indexed, deduplicated vector snapshot (~227k points):
-
-1. **Download Snapshot from Release v1.0.0** (`-L` ensures `curl` follows the GitHub S3 redirect):
-   ```bash
-   curl -L -O [https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates_clean_227k.snapshot](https://github.com/jdm6457/n8n-rag-suite/releases/download/v1.0.0/n8n_templates_clean_227k.snapshot)
-   ```
-
-2. **Restore to Local Qdrant**:
-   ```bash
-   curl -X POST http://localhost:6333/collections/n8n_templates/snapshots/upload \
-     -H 'Content-Type: multipart/form-data' \
-     -F 'snapshot=@n8n_templates_clean_227k.snapshot'
-   ```
-
-3. **Verify Seed**:
-   ```bash
-   curl -s http://localhost:6333/collections/n8n_templates | jq '.result.points_count'
-   ```
-
----
-
-### Option B: Fresh Ingestion via n8n Workflows
-1. Import `workflows/n8n-template-catalog-vector-sync.json` and execute manually to generate fresh embeddings for `n8n_templates`.
-2. Import `workflows/n8n-docs-vector-sync.json` and execute manually once to populate `n8n_docs` and lock in the initial GitHub commit SHA. Toggle its status to **Active** for automated daily maintenance.
 
 ---
 
@@ -208,7 +204,7 @@ sudo systemctl restart systemd-logind
 
 | Phase | Module / Enhancement | Status | Description |
 | :--- | :--- | :--- | :--- |
-| **Phase 1** | **Template Catalog Vector Sync** | 🟢 Complete | Seeding ~227k community workflow vectors into Qdrant (`n8n_templates`). |
+| **Phase 1** | **Template Catalog Vector Sync** | 🟢 Complete | Seeding ~749k community workflow vectors into Qdrant (`n8n_templates`). |
 | **Phase 2** | **Doc Sync & SHA Maintenance** | 🟢 Complete | Seeding ~148k doc vectors with automated 3 AM SHA change-detection (`n8n_docs`). |
 | **Phase 3** | **On-Device RAG Chat Assistant** | 🟢 Complete | Local AI Agent with dynamic dual-tool routing using `qwen2.5:7b-instruct`. |
 | **Phase 4** | **Hybrid Search & Sparse Vectors** | 🟡 Planned | Integrate BM25 sparse vectors into Qdrant for combined dense/sparse retrieval. |
