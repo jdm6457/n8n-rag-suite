@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 🛠️ n8n Template Catalog Vector Sync\n**Purpose:** Daily incremental ingestion of community workflow templates into Qdrant for local RAG retrieval.\n\n**🔗 Quick Links & Seed Database:**\n* **GitHub Repository**: [jdm6457/n8n-rag-suite](https://github.com/jdm6457/n8n-rag-suite)\n* **Instant Seed Download**: wget https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz\n\n**Prerequisites:**\n* Host Ollama running `nomic-embed-text:latest`\n* Qdrant instance listening on port 6333 (`n8n_templates` collection)\n* Schedule: Runs daily at 02:00 AM local time",
-        "height": 364,
+        "content": "## 🛠️ n8n Template Catalog Vector Sync\n\n**Purpose:** Daily incremental ingestion and security auditing of public community workflow templates into Qdrant for local RAG retrieval.\n\n**👤 Who It's For:**\nAutomation architects wanting a searchable, locally hosted vector database of ~749k n8n community workflow patterns.\n\n**🔗 Quick Links & Seed Database:**\n• **GitHub Repository**: [jdm6457/n8n-rag-suite](https://github.com/jdm6457/n8n-rag-suite)\n• **Instant Seed Download**: `wget https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz`\n\n**⚙️ Prerequisites:**\n• Host Ollama running `nomic-embed-text:latest`\n• Local Qdrant instance on port 6333 (`n8n_templates` collection)\n\n**🚀 How to Use:**\n1. Run manually once to fetch recent templates, or let the Schedule Trigger execute daily at 2:00 AM.\n2. Alternatively, use the Hugging Face snapshot link above to seed the Qdrant database instantly without scraping.",
+        "height": 508,
         "width": 1852,
         "color": 6
       },
@@ -12,7 +12,7 @@
       "typeVersion": 1,
       "position": [
         960,
-        -48
+        -192
       ],
       "id": "139cd54f-25c6-4a65-8ddb-894c68a95d91",
       "name": "Sticky Note - Intro"
@@ -421,7 +421,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "a6c48dff-36af-4e3a-a471-a6ca7077e9b9",
+  "versionId": "b2392a57-c293-4e5b-a5d6-d5f202767047",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"

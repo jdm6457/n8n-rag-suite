@@ -161,8 +161,8 @@
     },
     {
       "parameters": {
-        "content": "##🤖 n8n RAG Chat Assistant\n\n**Purpose: Interactive local AI Chat Assistant that dynamically routes queries to official n8n documentation or community workflow templates via Qdrant vector retrieval.\n\n**Prerequisites:**\n* Host Ollama running `qwen2.5:7b-instruct` (Chat Model) and `nomic-embed-text` (Embeddings)\n* Local Qdrant instance with active `n8n_docs` and `n8n_templates` collections",
-        "height": 236,
+        "content": "## 🤖 n8n RAG Chat Assistant\n\n**Purpose:** Interactive local AI Chat Assistant that dynamically routes queries to official n8n documentation or community workflow templates via Qdrant vector retrieval.\n\n**👤 Who It's For:**\nn8n Developers, AI Engineers, and DevOps teams looking for an air-gapped, local Copilot to assist with workflow design, expression syntax, and node parameters.\n\n**⚙️ Prerequisites:**\n• Host Ollama running `qwen2.5:7b-instruct` (Chat Model) and `nomic-embed-text` (Embeddings)\n• Local Qdrant instance listening on port 6333 with active `n8n_docs` and `n8n_templates` collections\n\n**🚀 How to Use:**\n1. Open the Chat Trigger interface in n8n.\n2. Ask questions about n8n syntax, node configs, or workflow patterns.",
+        "height": 444,
         "width": 1036,
         "color": 6
       },
@@ -170,15 +170,15 @@
       "typeVersion": 1,
       "position": [
         -176,
-        -464
+        -736
       ],
-      "id": "85f54d11-beb4-4b31-9ca6-2f57d03bb830",
-      "name": "Sticky Note - Intro"
+      "id": "53125b0c-6b5d-434f-b5d9-0629a4d3759e",
+      "name": "Sticky Note - Overview"
     },
     {
       "parameters": {
-        "content": "### 1. Core Agent Backbone\n\n* Captures chat inputs and maintains 10-turn conversation context.\n* Executes local `qwen2.5:7b-instruct` model via Ollama for tool-calling and response synthesis.",
-        "height": 1004,
+        "content": "### 1. Core Agent Backbone\n\n• **Chat Trigger**: Captures user input from the chat canvas or embedded widget.\n• **Simple Memory**: Retains 12-turn conversational context for coherent multi-turn dialog.\n• **Ollama Chat Model**: Executes local `qwen2.5:7b-instruct` with a 16k context window (`num_ctx: 16384`) for tool calling and response synthesis.",
+        "height": 1068,
         "width": 544,
         "color": 4
       },
@@ -186,15 +186,15 @@
       "typeVersion": 1,
       "position": [
         -176,
-        -208
+        -272
       ],
-      "id": "f6b3660d-1011-4260-a4ed-96ad13a3e711",
-      "name": "Sticky Note - Ingestion"
+      "id": "d49754f9-0e1b-48e5-b65a-88697b36e5b3",
+      "name": "Sticky Note - Agent Backbone"
     },
     {
       "parameters": {
-        "content": "### 2. Dual Vector Store Tools\n\n* n8n_docs_retriever: Searches official docs (~148k vectors) for setup, concepts, and expressions.\n* n8n_templates_retriever: Searches community templates (~242k vectors) for workflow JSON and node examples.",
-        "height": 1004,
+        "content": "### 2. Dual Vector Store Tools\n\n• **n8n_docs_retriever**: Searches official documentation (~14.6k vectors) for setup rules, core concepts, and expression syntax (`$json`, `$input`).\n• **n8n_templates_retriever**: Searches community templates (~749k vectors) for workflow JSON structures and real-world node examples.",
+        "height": 1068,
         "width": 472,
         "color": 3
       },
@@ -202,10 +202,10 @@
       "typeVersion": 1,
       "position": [
         384,
-        -208
+        -272
       ],
-      "id": "8a42ce06-ac23-4d84-95ba-72f5c8a2fc30",
-      "name": "Sticky Note - Audit"
+      "id": "0b742848-33e9-48b2-8e94-25fc2f083749",
+      "name": "Sticky Note - Dual Vector Tools"
     }
   ],
   "pinData": {},
@@ -294,7 +294,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "3b24a7b2-53d5-4fbc-ba7f-391480ba8400",
+  "versionId": "9ecbc8ac-3336-4ffc-921b-7ee6b27a7703",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"

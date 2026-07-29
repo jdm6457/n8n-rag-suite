@@ -131,8 +131,8 @@
     },
     {
       "parameters": {
-        "content": "## 🛠️ n8n Documentation Vector Sync\n\nPurpose: On-demand ingestion of the complete official n8n documentation repository (docs.n8n.io) into Qdrant for local RAG retrieval.\n\nPrerequisites:\n• Host Ollama running `nomic-embed-text`\n• Local Qdrant instance listening on port 6333 (`n8n_docs` collection)\n• Automated daily schedule (3 AM check with smart GitHub SHA change-detection)",
-        "height": 268,
+        "content": "## 🛠️ n8n Documentation Vector Sync\n\n**Purpose:** Daily automated ingestion of the official n8n documentation repository (`n8n-io/n8n-docs`) into Qdrant for local RAG retrieval.\n\n**👤 Who It's For:**\nDevOps & AI Engineers setting up local RAG pipelines to feed official n8n documentation into local LLMs.\n\n**⚙️ Prerequisites:**\n• Host Ollama running `nomic-embed-text`\n• Local Qdrant instance on port 6333 (`n8n_docs` collection)\n\n**🚀 Setup & How to Use:**\n1. Ensure Qdrant and Ollama credentials are configured.\n2. Activate the workflow to run automatically every day at 3:00 AM, or click \"Execute Workflow\" for an immediate initial sync.",
+        "height": 412,
         "width": 2556,
         "color": 6
       },
@@ -140,7 +140,7 @@
       "typeVersion": 1,
       "position": [
         -592,
-        -304
+        -448
       ],
       "id": "63fe009b-30cc-44e3-bef7-cb5ce8869035",
       "name": "Sticky Note - Intro"
@@ -163,31 +163,15 @@
     },
     {
       "parameters": {
-        "content": "### 2. File Isolation & Raw Fetch\n\n• Filters repository file tree to isolate official Markdown (`.md`) documentation pages.\n• Fetches raw Markdown content from GitHub raw endpoints using 10-item batching and retry options to prevent rate limits.",
-        "height": 444,
-        "width": 440,
-        "color": 3
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        576,
-        -16
-      ],
-      "id": "7341e418-e26a-4413-bb5f-1581b693d6fb",
-      "name": "Sticky Note - Audit"
-    },
-    {
-      "parameters": {
         "content": "### 3. Markdown Chunking & Qdrant Ingestion\n\n• Splits raw Markdown pages into logical sections by headings (`#`, `##`, `###`).\n• Generates text embeddings via Ollama (`nomic-embed-text`).\n• Upserts document chunks and rich metadata directly into Qdrant `n8n_docs` collection.\n• Writes new SHA of n8n docs repo to persistent memory",
         "height": 572,
-        "width": 932,
+        "width": 948,
         "color": 5
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1040,
+        1024,
         -16
       ],
       "id": "947bfe2d-1b85-40b0-a6a5-43a481c82ee9",
@@ -379,6 +363,22 @@
       ],
       "id": "162b0be5-7cf4-45ee-a712-eba2d75394c5",
       "name": "Write n8n Docs SHA"
+    },
+    {
+      "parameters": {
+        "content": "### 2. File Isolation & Raw Fetch\n\n• Filters repository file tree to isolate official Markdown (`.md`) documentation pages.\n• Fetches raw Markdown content from GitHub raw endpoints using 10-item batching and retry options to prevent rate limits.",
+        "height": 444,
+        "width": 440,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        576,
+        -16
+      ],
+      "id": "e72d52ff-7762-4573-9125-1a9d53ebcac5",
+      "name": "Sticky Note - Fetch & Batch"
     }
   ],
   "pinData": {},
@@ -533,7 +533,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "2c722aee-b064-40dc-9bdc-9451adb52679",
+  "versionId": "90880f1c-0df6-4ebd-8adb-a3af3fcdbb73",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"
