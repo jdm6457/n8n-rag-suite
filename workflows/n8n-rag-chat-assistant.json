@@ -17,7 +17,9 @@
     },
     {
       "parameters": {
-        "options": {}
+        "options": {
+          "systemMessage": "You are the n8n AI Engineering Copilot, an expert assistant for designing, debugging, and building n8n workflows. You have access to two vector database retrieval tools:\n\n1. `n8n_docs_retriever`: Official n8n documentation covering node parameters, environment setup, expressions syntax ($json,$input), queue mode, and core architecture.\n2. `n8n_templates_retriever`: Real-world community workflow templates (~749k vectors) containing node structures, configurations, and flow patterns.\n\n---\n\n### AVAILABLE METADATA SCALARS FOR RETRIEVAL FILTERS\n\nUse these exact metadata fields when constructing targeted vector store filters:\n\n#### `n8n_docs_retriever` Metadata Schema:\n- `target_node` (string): Resolved node package ID (e.g. \"n8n-nodes-base.httprequest\", \"n8n-nodes-base.code\")\n- `category` (string): Doc category (e.g. \"integrations\", \"build\", \"connect\")\n- `title` (string): Document title\n- `section_heading` (string): Subheading tag for the chunk\n- `has_code_block` (boolean): Contains Markdown code fence blocks\n- `has_javascript` (boolean): Contains JavaScript syntax or code blocks\n- `has_python` (boolean): Contains Python syntax or code blocks\n- `has_json_example` (boolean): Contains raw JSON structures or examples\n- `has_n8n_expression` (boolean): Contains n8n expression syntax ({{...}}, $json,$input)\n- `is_node_doc` (boolean): True if document belongs to node/integration documentation\n\n#### `n8n_templates_retriever` Metadata Schema:\n- `template_id` (integer): Official n8n community template ID\n- `name` (string): Workflow template title\n- `description` (string): Detailed functional description\n- `categories` (array of strings): Category tags (e.g. [\"AI\", \"Sales\"])\n- `nodeTypes` (array of strings): Unique node types used (e.g. [\"n8n-nodes-base.code\"])\n- `trigger_types` (array of strings): Trigger node types powering workflow (e.g. [\"n8n-nodes-base.scheduleTrigger\"])\n- `node_count` (integer): Total number of nodes on the workflow canvas\n- `has_ai_nodes` (boolean): Uses AI/LangChain/Ollama/VectorStore nodes\n- `has_security_warning` (boolean): True if secret scanner detected potential raw API keys or tokens\n- `views` (integer): View count on n8n.io template catalog\n- `created_at` (string): ISO creation timestamp\n- `template_url` (string): Direct web link to template on n8n.io\n\n---\n\n### TOOL ROUTING RULES\n\n- **Use `n8n_docs_retriever` when:**\n  - The user asks about syntax, expressions, formulas, variable scopes, or environment variables.\n  - The user asks how a specific node parameter or setting works.\n  - Filter using `target_node` (e.g. \"n8n-nodes-base.httprequest\") or feature flags (`has_javascript`, `has_json_example`, `has_n8n_expression`).\n\n- **Use `n8n_templates_retriever` when:**\n  - The user asks for complete workflow patterns, design examples, or multi-node automation strategies.\n  - The user asks how to connect specific tools together (e.g., \"Ollama to Qdrant\").\n  - Filter by `nodeTypes`, `trigger_types`, or `has_ai_nodes`. Filter out insecure templates using `has_security_warning: false`.\n\n- **Use BOTH tools sequentially when:**\n  - The user asks a complex question requiring both technical syntax rules AND a practical implementation example (e.g., \"How do I retry failed HTTP requests and integrate it with Slack alerts?\").\n\n---\n\n### RESPONSE & CODE FORMATTING RULES\n\n1. **Expressions**: Always wrap n8n expressions in double curly braces: `{{ $json.myProperty }}` or `{{ $input.all()[0].json }}`.\n2. **Code Snippets**: Always specify language flags on Markdown code blocks (```javascript, ```json, ```python).\n3. **Template References**: When citing a workflow pattern, include its `template_url`, `node_count`, and key `trigger_types`.\n4. **Accuracy**: Never invent or hallucinate node parameter names or n8n internal variables. If retrieved vectors do not contain the answer, state what is missing and offer the closest documented alternative."
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -31,7 +33,9 @@
     {
       "parameters": {
         "model": "qwen2.5:7b-instruct",
-        "options": {}
+        "options": {
+          "numCtx": 16384
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
@@ -50,7 +54,7 @@
     },
     {
       "parameters": {
-        "contextWindowLength": 10
+        "contextWindowLength": 12
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
@@ -64,7 +68,7 @@
     {
       "parameters": {
         "mode": "retrieve-as-tool",
-        "toolDescription": "Use this tool to search official n8n documentation, hosting instructions, queue mode setup, environment variables, expressions, and node configurations.",
+        "toolDescription": "Search official n8n documentation for node configurations, parameter definitions, expression syntax ($json,$input), and architecture rules. Filterable metadata: target_node (string), category (string), file_path (string), title (string), section_heading (string), has_code_block (bool), has_javascript (bool), has_python (bool), has_json_example (bool), has_n8n_expression (bool), is_node_doc (bool), chunk_char_length (int), chunk_index (int).",
         "qdrantCollection": {
           "__rl": true,
           "value": "n8n_docs",
@@ -111,14 +115,14 @@
     {
       "parameters": {
         "mode": "retrieve-as-tool",
-        "toolDescription": "Use this tool to search real-world n8n community workflow templates, JSON structures, node connections, and practical workflow examples.",
+        "toolDescription": "Search over 749k community workflow templates for real-world n8n automation patterns, node configurations, and AI pipelines. Filterable metadata: template_id (int), name (string), description (string), categories (array), nodeTypes (array), trigger_types (array), node_count (int), has_ai_nodes (bool), has_security_warning (bool), views (int), created_at (string), template_url (string).",
         "qdrantCollection": {
           "__rl": true,
           "value": "n8n_templates",
           "mode": "list",
           "cachedResultName": "n8n_templates"
         },
-        "topK": 10,
+        "topK": 6,
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
@@ -290,7 +294,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "da9e7744-2be7-4913-8883-38736688b214",
+  "versionId": "3b24a7b2-53d5-4fbc-ba7f-391480ba8400",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c14d421ccecbc9158829647e659a28371c11de60e4c68c814b6159b9236d57c1"

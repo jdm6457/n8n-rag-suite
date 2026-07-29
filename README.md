@@ -25,8 +25,8 @@ This suite provides an end-to-end, locally hosted intelligence pipeline designed
 **Phases 1, 2, and 3 are 100% complete and operational!**
 
 * **Phase 1 (Template Catalog Sync)**: Ingested over 749,000+ deduplicated vector points from the n8n community workflow template catalog into Qdrant (`n8n_templates`). Includes automated idempotent pre-sync purges and secret detection filters.
-* **Phase 2 (Doc Sync & Automated Maintenance)**: Ingested official n8n documentation into 14,610 clean, section-level vector points in Qdrant (`n8n_docs`). Operates on an automated daily 3 AM schedule with a ~10ms smart GitHub Commit SHA change-detection guard.
-* **Phase 3 (On-Device RAG Assistant)**: Fully deployed local AI Agent with dynamic tool routing across both vector stores (`n8n_docs_retriever` & `n8n_templates_retriever`).
+* **Phase 2 (Doc Sync & Automated Maintenance)**: Ingested official n8n documentation into 14,610 clean, section-level vector points in Qdrant (`n8n_docs`). Operates on an automated daily 3 AM schedule with a ~10ms smart GitHub Commit SHA change-detection guard (`00000000-0000-0000-0000-000000000000`).
+* **Phase 3 (On-Device RAG Assistant)**: Fully deployed local AI Agent with dynamic tool routing across both vector stores (`n8n_docs_retriever` & `n8n_templates_retriever`). Features explicit System Prompt routing rules, a 16k context window (`num_ctx: 16384`), and payload metadata awareness.
 
 ---
 
@@ -41,8 +41,21 @@ This suite provides an end-to-end, locally hosted intelligence pipeline designed
 
 * **Orchestration**: n8n (`docker.n8n.io/n8nio/n8n:latest`)
 * **Vector Database**: Qdrant (`qdrant/qdrant:latest`)
-* **Embeddings Engine**: Host Ollama with CUDA GPU Acceleration (`nomic-embed-text`)
+* **Embeddings Engine**: Host Ollama with CUDA GPU Acceleration (`nomic-embed-text`, 768 dimensions)
 * **Inference Engine**: Host Ollama (`qwen2.5:7b-instruct`)
+
+---
+
+## 💻 Hardware Acceleration & VRAM Footprint
+
+* **GPU Hardware**: NVIDIA RTX 3000 Ada Laptop GPU (8,188 MiB VRAM)
+* **Chat LLM Model**: `qwen2.5:7b-instruct`
+  * **Context Window (`num_ctx`)**: `16384` (16k context window)
+  * **VRAM Allocation**: ~5.0 GB base model weights + ~1.8 GB KV cache
+* **Embeddings Model**: `nomic-embed-text` (~358 MiB VRAM)
+* **Qdrant Retriever Settings**:
+  * `n8n_docs_retriever` Limit (Top K): `3`
+  * `n8n_templates_retriever` Limit (Top K): `3` to `5`
 
 ---
 
@@ -115,7 +128,7 @@ Both vector collections are configured with custom developer metadata payloads m
 | `has_security_warning` | Boolean | `true` if regex audit flagged potential unencrypted keys, tokens, or raw secrets |
 | `views` | Integer | Total view counter on the n8n community template catalog |
 | `created_at` | String | ISO creation timestamp string (e.g., `"2025-04-12T14:20:00.000Z"`) |
-| `template_url` | String | Direct web link to template on n8n.io (`[https://n8n.io/workflows/](https://n8n.io/workflows/)...`) |
+| `template_url` | String | Direct web link to template on n8n.io (`https://n8n.io/workflows/...`) |
 
 *Example Qdrant Payload Filter:*
 ```json
@@ -178,7 +191,7 @@ To bypass running a multi-hour catalog embedding sweep, seed your local Qdrant d
 
 1. **Download Compressed Snapshot**:
    ```bash
-   wget https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz
+   wget [https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz](https://huggingface.co/datasets/jdm6457/n8n-rag-suite-snapshot/resolve/main/n8n_templates_749k.snapshot.gz)
    ```
 
 2. **Decompress Archive**:
@@ -220,10 +233,61 @@ To bypass running a multi-hour catalog embedding sweep, seed your local Qdrant d
 
 ### 🤖 Phase 3: On-Device RAG Chat Assistant
 * **Workflow File**: `workflows/n8n-rag-chat-assistant.json`
-* **Description**: A local, conversational AI Assistant powered by an n8n AI Agent and `qwen2.5:7b-instruct`. Uses `Window Buffer Memory` for context retention and features dual **Vector Store Tools** for domain-specific retrieval:
+* **Description**: A local, conversational AI Assistant powered by an n8n AI Agent and `qwen2.5:7b-instruct`. Uses `Window Buffer Memory` for context retention (10-12 messages) and features dual **Vector Store Tools** for domain-specific retrieval:
   * **`n8n_docs_retriever`**: Directs environment setup, expression syntax, queue mode, and core architecture queries to official documentation vectors.
   * **`n8n_templates_retriever`**: Directs requests for sample JSON structures, flow patterns, and real-world node configurations to template vectors.
-  * **Hybrid Synthesis**: Seamlessly queries both vector stores sequentially for complex prompts requiring theory and implementation examples.
+  * **Hybrid Dual-Tool Synthesis**: Seamlessly queries both vector stores sequentially for complex prompts requiring official syntax rules alongside practical implementation examples.
+
+---
+
+## 🤖 Agent Evaluation Matrix & Baseline Prompts
+
+Below are baseline test cases verifying tool routing, expression accuracy, and template citation capabilities:
+
+### Test Case 1: Expression Syntax & Doc Lookup
+* **Prompt**: *"What expression syntax do I use to access the first item in n8n's Code node?"*
+* **Tool Invoked**: `n8n_docs_retriever`
+* **Sample Output**:
+  ```text
+  To access the first item in n8n's Code node, you can use the following n8n expression syntax:
+
+  ```javascript
+  {{ $input.all()[0].json }}
+  ```
+
+  This expression uses `$input.all()` to retrieve input items and accesses the first element via `.all()[0]`.
+  ```
+
+### Test Case 2: Workflow Pattern Search
+* **Prompt**: *"Show me a workflow pattern that uses the Ollama Chat Model node or Qdrant Vector Store node."*
+* **Tool Invoked**: `n8n_templates_retriever`
+* **Sample Output**:
+  ```text
+  Workflow Pattern: AI-Driven Query with Vector Retrieval
+  1. Manual Trigger: Initiates execution.
+  2. Ollama Chat Model Node: Processes input prompt.
+  3. Qdrant Vector Store Node: Queries vector collection.
+
+  Sample Code Snippet:
+  ```javascript
+  const ollamaResponse = $input.all()[0].json;
+  return ollamaResponse;
+  ```
+  ```
+
+### Test Case 3: Hybrid Dual-Tool Synthesis
+* **Prompt**: *"How do I configure retries on failure for the HTTP Request node, and show me a workflow pattern that handles errors?"*
+* **Tools Invoked**: `n8n_docs_retriever` followed by `n8n_templates_retriever`
+* **Sample Output**:
+  ```text
+  To configure retries on failure for the HTTP Request node:
+  1. Open HTTP Request node -> Settings.
+  2. Enable "Retry on Fail".
+  3. Set "Max Tries" and "Wait Between Tries (ms)" (e.g., 1000 ms).
+
+  For advanced error handling with exponential backoff, see n8n Template #2556:
+  [https://n8n.io/workflows/2556](https://n8n.io/workflows/2556)
+  ```
 
 ---
 
@@ -267,7 +331,7 @@ sudo systemctl restart systemd-logind
 
 ## 🛠️ Troubleshooting & Local Networking
 
-* **Docker vs Host Networking**: When n8n runs inside Docker and Ollama/Qdrant run on the host system, configure connections using `[http://host.docker.internal:11434](http://host.docker.internal:11434)` or `[http://host.docker.internal:6333](http://host.docker.internal:6333)` inside the n8n UI credentials instead of `localhost`.
+* **Docker vs Host Networking**: When n8n runs inside Docker and Ollama/Qdrant run on the host system, configure connections using `http://host.docker.internal:11434` or `http://host.docker.internal:6333` inside the n8n UI credentials instead of `localhost`.
 * **Collection Dimensions**: Ensure Qdrant collection settings match the 768-dimension vector output of `nomic-embed-text`.
 * **Data Loader Configuration**: When ingesting custom pre-chunked items from Code nodes, always set **Default Data Loader** to `Type of Data: JSON`, `Mode: Load Specific Data`, `Data: {{ $json.pageContent }}`, and `Text Splitting: None` to avoid sub-fragmenting chunks.
 
