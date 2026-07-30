@@ -43,16 +43,17 @@ The suite operates entirely within local hardware boundaries to maintain total d
 ```
 n8n-rag-suite/
 ├── docker/
-│   └── docker-compose.yml          # Containerized Qdrant & Ollama orchestration
+│   └── docker-compose.yml                  # Containerized Qdrant & Ollama orchestration
 ├── workflows/
-│   ├── n8n-rag-copilot.json        # Main dual-tool AI Agent workflow
-│   └── doc-sync-pipeline.json      # GitHub SHA doc sync & vector ingestion pipeline
+│   ├── n8n-template-catalog-vector-sync.json # Phase 1: Community template vector ingestion & hygiene
+│   ├── n8n-docs-vector-sync.json           # Phase 2: Official docs sync & SHA cache guard
+│   └── n8n-rag-chat-assistant.json        # Phase 3: On-device dual-tool RAG Chat Assistant
 ├── scripts/
-│   ├── seed_qdrant.py              # Automated vector dataset seeder from Hugging Face
-│   └── requirements.txt            # Python dependencies for dataset seeding
-├── .env.example                    # Environment variable configuration template
-├── LICENSE                         # MIT open-source license
-└── README.md                       # Documentation & system architecture guide
+│   ├── seed_qdrant.py                      # Automated vector dataset seeder from Hugging Face
+│   └── requirements.txt                    # Python dependencies for dataset seeding
+├── .env.example                            # Environment variable configuration template
+├── LICENSE                                 # MIT open-source license
+└── README.md                               # Documentation & system architecture guide
 ```
 
 ---
@@ -62,16 +63,16 @@ n8n-rag-suite/
 ### Operational Production Phases `[STATUS: COMPLETED / PRODUCTION]`
 
 * **Phase 1: Community Template Catalog Vector Sync & Data Hygiene** `[COMPLETED]`
-  * Vectorized snapshot of ~749k n8n community workflow templates stored in Qdrant.
+  * Vectorized snapshot of ~749k n8n community workflow templates stored in Qdrant (`n8n-template-catalog-vector-sync.json`).
   * Embedded **7-stage regex security sanitizer** within n8n workflow nodes to scrub API tokens, credentials, connection strings, bearer headers, and control characters prior to vector embedding.
   * Published a pre-indexed vector dataset snapshot to [Hugging Face Datasets](https://huggingface.co/datasets/jdm6457/n8n-community-template-vectors) (`jdm6457/n8n-community-template-vectors`) for 1-click database seeding.
 
 * **Phase 2: Official Documentation Sync & Automated Maintenance** `[COMPLETED]`
-  * Automated sync pipeline pulling official upstream `n8n-docs` markdown content into Qdrant.
+  * Automated sync pipeline pulling official upstream `n8n-docs` markdown content into Qdrant (`n8n-docs-vector-sync.json`).
   * Integrated **~10ms Smart GitHub SHA Guard** querying GitHub commit SHAs against local state to skip redundant re-indexing when documentation is unchanged.
 
 * **Phase 3: On-Device AI RAG Chat Assistant (Dual-Tool Copilot)** `[COMPLETED]`
-  * Local AI Agent running `qwen2.5:7b-instruct` via Ollama.
+  * Local AI Agent running `qwen2.5:7b-instruct` via Ollama (`n8n-rag-chat-assistant.json`).
   * Calibrated system prompts and conversational memory window settings.
   * Dynamic dual-tool routing between official n8n documentation and community templates based on query intent.
   * Performance-optimized for 8GB VRAM environments (~28–35 tokens/sec generation speed).
@@ -178,7 +179,10 @@ python3 scripts/seed_qdrant.py --dataset jdm6457/n8n-community-template-vectors
 
 * Open your n8n web UI.
 * Navigate to **Workflows** $\rightarrow$ **Import from File**.
-* Import `workflows/n8n-rag-copilot.json` (Main AI Agent) and `workflows/doc-sync-pipeline.json` (Doc Sync Pipeline).
+* Import the three core suite JSON workflows in sequence:
+  1. `workflows/n8n-template-catalog-vector-sync.json` (Phase 1 Template Sync & Hygiene)
+  2. `workflows/n8n-docs-vector-sync.json` (Phase 2 Official Docs Sync & SHA Guard)
+  3. `workflows/n8n-rag-chat-assistant.json` (Phase 3 AI Assistant Agent)
 
 ---
 
