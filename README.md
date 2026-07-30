@@ -42,8 +42,7 @@ The suite operates entirely within local hardware boundaries to maintain total d
 
 ```
 n8n-rag-suite/
-├── docker/
-│   └── docker-compose.yml                  # Containerized Qdrant & Ollama orchestration
+├── docker-compose.yml                      # Containerized n8n & Qdrant orchestration with host Ollama bridge
 ├── workflows/
 │   ├── n8n-template-catalog-vector-sync.json # Phase 1: Community template vector ingestion & hygiene
 │   ├── n8n-docs-vector-sync.json           # Phase 2: Official docs sync & SHA cache guard
@@ -114,56 +113,87 @@ Tested on local workstation hardware (Apple Silicon / NVIDIA RTX 8GB VRAM):
 
 ### Prerequisites
 * **Docker & Docker Compose**
-* **n8n** (Self-hosted v1.x+)
-* **Ollama** (Configured with `qwen2.5:7b-instruct` and `nomic-embed-text`)
+* **Ollama** (Running natively on host OS with `qwen2.5:7b-instruct` and `nomic-embed-text`)
 * **Python 3.10+** (For dataset seeding)
 
 ### 1. Launch Container Infrastructure
 
-Navigate to the `docker/` directory or deploy using the following `docker-compose.yml`:
+Deploy the stack using the root `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
+networks:
+  n8n-rag-network:
+    driver: bridge
+
+volumes:
+  n8n_storage:
+  qdrant_storage:
 
 services:
+  # --------------------------------------------------
+  # 1. Qdrant Vector Database
+  # --------------------------------------------------
   qdrant:
-    image: qdrant/qdrant:v1.7.4
-    container_name: qdrant_rag
+    image: qdrant/qdrant:latest
+    container_name: n8n_qdrant
+    restart: unless-stopped
     ports:
-      - "6333:6333"
+      - "${QDRANT_PORT}:6333"
       - "6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
-    restart: unless-stopped
+    networks:
+      - n8n-rag-network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1s bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama_rag
+  # --------------------------------------------------
+  # 2. n8n Automation Engine
+  # --------------------------------------------------
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n_app
+    env_file:
+      - .env
+    restart: unless-stopped
     ports:
-      - "11434:11434"
+      - "${N8N_PORT}:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=${N8N_PORT}
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:${N8N_PORT}/
+      - GENERIC_TIMEZONE=${TIMEZONE}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS}
     volumes:
-      - ollama_storage:/root/.ollama
-    restart: unless-stopped
-
-volumes:
-  qdrant_storage:
-  ollama_storage:
+      - n8n_storage:/home/node/.n8n
+    networks:
+      - n8n-rag-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      qdrant:
+        condition: service_healthy
 ```
 
-Run the containers:
+Start the containers:
 ```bash
-docker compose -f docker/docker-compose.yml up -d
+docker compose up -d
 ```
 
 ### 2. Environment Configuration
 
-Copy `.env.example` to `.env` and set your local network endpoints:
+Copy `.env.example` to `.env` and configure your local settings:
 ```env
+N8N_PORT=5678
+QDRANT_PORT=6333
+TIMEZONE=America/New_York
+N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
 N8N_ENCRYPTION_KEY=your_secure_encryption_key
-QDRANT_HOST=http://localhost:6333
-OLLAMA_HOST=http://localhost:11434
-EMBEDDING_MODEL=nomic-embed-text
-LLM_MODEL=qwen2.5:7b-instruct
 ```
 
 ### 3. Seed Pre-Indexed Community Vector Dataset
@@ -177,7 +207,7 @@ python3 scripts/seed_qdrant.py --dataset jdm6457/n8n-community-template-vectors
 
 ### 4. Import Workflows into n8n
 
-* Open your n8n web UI.
+* Open your n8n web UI (`http://localhost:5678`).
 * Navigate to **Workflows** $\rightarrow$ **Import from File**.
 * Import the three core suite JSON workflows in sequence:
   1. `workflows/n8n-template-catalog-vector-sync.json` (Phase 1 Template Sync & Hygiene)
