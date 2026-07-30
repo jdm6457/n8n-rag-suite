@@ -6,7 +6,7 @@
 ![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-000000.svg)
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg)
 
-> A fully self-hosted, air-gapped Retrieval-Augmented Generation (RAG) copilot engineered with n8n, Qdrant vector database, and local Ollama LLMs. Features automated documentation sync, ~10ms SHA cache guards, regex secret sanitization, and pre-indexed community template search—optimized for local execution within 8GB VRAM hardware boundaries.
+> A fully self-hosted, air-gapped Retrieval-Augmented Generation (RAG) copilot engineered with n8n, Qdrant vector database, and local Ollama LLMs. Features automated documentation sync, ~10ms SHA cache guards, regex secret sanitization, and pre-indexed community template search (10k+ templates / ~749k vector points)—optimized for local execution within 8GB VRAM hardware boundaries.
 
 ---
 
@@ -33,7 +33,7 @@ The suite operates entirely within local hardware boundaries to maintain total d
                         |                                               |
               [10ms SHA Cache Guard]                           [7-Stage Regex]
                         |                                               |
-           Upstream `n8n-docs` Repo                       ~749k Community Templates
+           Upstream `n8n-docs` Repo                       10k+ Templates (~749k Vectors)
 ```
 
 ---
@@ -63,9 +63,9 @@ n8n-rag-suite/
 ### Operational Production Phases `[STATUS: COMPLETED / PRODUCTION]`
 
 * **Phase 1: Community Template Catalog Vector Sync & Data Hygiene** `[COMPLETED]`
-  * Vectorized snapshot of ~749k n8n community workflow templates stored in Qdrant (`n8n-template-catalog-vector-sync.json`).
+  * Vectorized snapshot of 10k+ n8n community workflow templates (~749k vector points) stored in Qdrant (`n8n-template-catalog-vector-sync.json`).
   * Embedded **7-stage regex security sanitizer** within n8n workflow nodes to scrub API tokens, credentials, connection strings, bearer headers, and control characters prior to vector embedding.
-  * Published a pre-indexed vector dataset snapshot to [Hugging Face Datasets](https://huggingface.co/datasets/jdm6457/n8n-community-template-vectors) (`jdm6457/n8n-community-template-vectors`) for 1-click database seeding.
+  * Published a pre-indexed ~749k vector point dataset snapshot to [Hugging Face Datasets](https://huggingface.co/datasets/jdm6457/n8n-community-template-vectors) (`jdm6457/n8n-community-template-vectors`) for 1-click database seeding.
 
 * **Phase 2: Official Documentation Sync & Automated Maintenance** `[COMPLETED]`
   * Automated sync pipeline pulling official upstream `n8n-docs` markdown content into Qdrant (`n8n-docs-vector-sync.json`).
@@ -74,7 +74,7 @@ n8n-rag-suite/
 * **Phase 3: On-Device AI RAG Chat Assistant (Dual-Tool Copilot)** `[COMPLETED]`
   * Local AI Agent running `qwen2.5:7b-instruct` via Ollama (`n8n-rag-chat-assistant.json`).
   * Calibrated system prompts and conversational memory window settings.
-  * Dynamic dual-tool routing between official n8n documentation and community templates based on query intent.
+  * Dynamic dual-tool routing between official n8n documentation and the 10k+ community template vector catalog (~749k vector points) based on query intent.
   * Performance-optimized for 8GB VRAM environments (~28–35 tokens/sec generation speed).
 
 ---
@@ -168,7 +168,7 @@ LLM_MODEL=qwen2.5:7b-instruct
 
 ### 3. Seed Pre-Indexed Community Vector Dataset
 
-Pull and load the pre-computed template vector dataset snapshot directly from [Hugging Face Datasets](https://huggingface.co/datasets/jdm6457/n8n-community-template-vectors):
+Pull and load the pre-computed template vector dataset snapshot (~749k vector points across 10k+ templates) directly from [Hugging Face Datasets](https://huggingface.co/datasets/jdm6457/n8n-community-template-vectors):
 
 ```bash
 pip install -r scripts/requirements.txt
